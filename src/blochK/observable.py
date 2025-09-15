@@ -2,6 +2,10 @@ import numpy as np
 from numpy import pi,cos,sin,exp
 
 
+#############################################################################################################################################
+#eigenvalues, eigenstates, and expectation values
+#############################################################################################################################################
+
 
 #solve a hamiltonian
 def eigs_H(kx,ky,Hamiltonian_fct,Hparam): 
@@ -41,6 +45,7 @@ def exp_value_O(O,psi):
 def exp_value_Odiag(O,psi):
     """evalute the expectation value of an Operator O (.shape=(n)) for a set of states psi (band x kys (x kxs) x localH)"""
     return np.sum((np.abs(psi)**2*O),axis=-1)
+
 
 #############################################################################################################################################
 #degeneracy of eigenstates
@@ -89,4 +94,71 @@ def isDegenerateIn(es,observable_values,threshold=10):
     observable_values = np.moveaxis(observable_values,0,-1) #move band to last axis
     res = isDegenerateIn_vectorized(es,observable_values,threshold=threshold) #axis needs to be last otherwise doesn't work
     return np.moveaxis(res,-1,0)
+
+
+
+
+#############################################################################################################################################
+#conductivity
+#############################################################################################################################################
+from blochK.methods_basic import sample_BZ
+
+def conductivity(Hamiltonian_fct,Hparam=dict(),Gamma=1e-2,energy=0,operator=None,kmesh_BZ=None,basis='xy',optimize='path'):
+    """
+    Evalutes the conductivity with respect to an operator of Hamiltonian_fct with 'Hparam'. 
+    Parameters:
+    'Hamiltonian_fct': function that returns the Hamiltonian in k-space
+    'Hparam': parameters for the Hamiltonian function
+    'Gamma':  spectral broadening
+    'energy': addtional energy at which the conductivity is evaluated. Default is 0 (Fermi level)
+    'operator': the operator with respect to which the conductivity is evaluated. .shape = (localH) or (localH x localH). Default is the identity operator
+    'Lq': number of k-points in the q-direction
+    'kmesh_BZ': the k-points of the Brillouin zone. If None, square BZ is sampled with 100x100 points
+    'optimize': optimization strategy for the computation, see numpy.einsum documentation, for a new problem use 'find_path' first, store it in function and use 'path'
+    """
+    #sampling the BZ
+    if kmesh_BZ is None:
+        Lq = 100
+        kmesh_BZ = sample_BZ(Lq)
+    else:
+        Lq = kmesh_BZ.shape[1]
+    ks = kmesh_BZ #ks.shape=(2,k,q)
+
+    #compute the hamiltonian, eigenvalues and eigenstates
+    Hk = Hamiltonian_fct(*ks,**Hparam) #.shape = (localH,localH,k,q)
+    es,psi = eigs_H(*ks,Hamiltonian_fct,Hparam) #.shape=(band,k,q,localH)
+    
+    #compute the derivatives of Hk along unit vectors of BZ
+    dk = np.linalg.norm(np.abs(ks[:,0,1]-ks[:,0,0]),axis=0) 
+    v1 = -(np.roll(Hk,1,axis=2)-np.roll(Hk,-1,axis=2))/dk/2 #along first axis
+    v2 = -(np.roll(Hk,1,axis=3)-np.roll(Hk,-1,axis=3))/dk/2 #along second axis
+    v = np.array([v1,v2]) #.shape = (2,localH,localH,k,q)
+    
+    #calculate the operator density
+    if operator is None: #identity operator if none given
+        localH = Hk.shape[0]
+        operator = np.ones(localH) 
+    if len(operator.shape)==1: #operator.shape = (localH)
+        jspin = np.einsum('n,inmkq->inmkq',operator,v) #.shape = (2,localH,localH,k,q)
+    else: #operator.shape = (localH,localH)
+        jspin = np.einsum('ln,inmkq->ilmkq',operator,v)/2 + np.einsum('inmkq,ml->inlkq',v,operator)/2 #.shape = (2,localH,localH,Lq,Lq) #antisymmetrized version if s,
+    
+    Greenfct = Gamma/((es-energy)**2+Gamma**2) #.shape = (band,Lq,Lq)
+
+    #compute the product of all these quantities
+    #contracting of many indices might be costly, therefore use preoptimized path or 'greedy'
+    if optimize=='path':
+        opt_path = ['einsum_path', (0, 6), (1, 5), (1, 5), (0, 4), (1, 2), (0, 2), (0, 1)]
+        sigma = np.einsum('nkqa,iabkq,mkqb,mkqc,jcdkq,nkqd,nkq,mkq->ij',np.conjugate(psi),jspin,psi,np.conjugate(psi),v,psi,Greenfct,Greenfct,optimize=opt_path)
+    elif optimize=='find_path': #returns the optimal path, no results!
+        opt_path = np.einsum_path('nkqa,iabkq,mkqb,mkqc,jcdkq,nkqd,nkq,mkq->ij',np.conjugate(psi),jspin,psi,np.conjugate(psi),v,psi,Greenfct,Greenfct, optimize='optimal')[0]
+        print('Optimal contraction path found:',opt_path)
+        return opt_path
+    elif optimize=='greedy':
+        sigma = np.einsum('nkqa,iabkq,mkqb,mkqc,jcdkq,nkqd,nkq,mkq->ij',np.conjugate(psi),jspin,psi,np.conjugate(psi),v,psi,Greenfct,Greenfct,optimize='greedy')
+    else:
+        sigma = np.einsum('nkqa,iabkq,mkqb,mkqc,jcdkq,nkqd,nkq,mkq->ij',np.conjugate(psi),jspin,psi,np.conjugate(psi),v,psi,Greenfct,Greenfct)
+    
+    
+    return np.real(sigma)/Lq**2 /np.pi
 

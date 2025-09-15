@@ -20,12 +20,12 @@ m2 = 2*np.pi/A * np.array([-n1[1], n1[0]])
 # Define High symmetry points in BZ
 points_BZ = {
     "\Gamma": [0,0],
-    "X": [1,0],
-    "Y": [0,1],
-    "R": [1,1],
-    "R'": [1,-1],
-    "-R": [-1,1],
-    "-R'": [-1,-1]
+    "X": [pi,0],
+    "Y": [0,pi],
+    "R": [pi,pi],
+    "R'": [pi,-pi],
+    "-R": [-pi,pi],
+    "-R'": [-pi,-pi]
 }
 
 
@@ -60,8 +60,9 @@ def H_2orb_2D(kx,ky,t1=1,t2=0,t3=0,mu=0,m=0):
 
 
 
-def H_2orb_3D(kx,ky,len_z,t1=1,t2=0,t3=0,tz=1,tzp=0,mu=0,m=0,Q_z=np.pi,PBC=False): 
+def H_2orb_3D(kx,ky,len_z=2,t1=1,t2=0,t3=0,tz=1,tzp=0,mu=0,m=0,Q_z=np.pi,PBC=False): 
     """
+    len_z: number of layers in z-direction
     t1: NN hopping x orbital in x direction, y orbital in y direction
     t2: NN hopping x orbital in y direction, y orbital in x direction
     t3: NNN hopping x->x, y->y, x->y, y->x orbital in [1,1] and [1,-1] direction

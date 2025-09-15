@@ -11,7 +11,8 @@ def test_H_2orb_2D():
     assert H.shape == (4, 4, 2)
 
 
-def test_H_2orb_2D():
+def test_H_2orb_3D():
+    param = dict(len_z=6,t1=1,t2=0.5,mu=0,m=0.3,t3=0,tz=1,tzp=0,PBC=False,Q_z=np.pi)
 
     kx = np.array([0, 2])
     ky = np.array([1, 1])

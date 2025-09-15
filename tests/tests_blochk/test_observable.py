@@ -50,3 +50,10 @@ def test_isDegenerateIn():
     deg = observable.isDegenerateIn(es, O) 
     assert deg.shape == es.shape
     assert np.all(deg == True)
+
+
+def test_conductivity():
+    param = dict(t=1)
+    sigma = observable.conductivity(Hamiltonian_fct=Hamiltonian0, Hparam=param)
+    assert sigma.shape == (2, 2)
+    assert np.isclose(sigma[0,0], sigma[1,1])
