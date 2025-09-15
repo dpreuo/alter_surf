@@ -34,9 +34,9 @@ def H_DLKK_2D(kx,ky,t=1,tp=0.5,delta=0,mu=0,m=0):
     """
     t: NN hopping
     tp: NNN hopping
-    delta: unistropy of NNN hopping [1,1] direction, x,y orbital in [1,-1] direction
+    delta: unisotropy of NNN hopping [1,1], [-1,1] direction
     mu: chemical potential
-    m: AFM magnetization +m on A, -m on B
+    m: AFM magnetization -m on A, +m on B
     """
     Hk = np.zeros((4,4,*kx.shape),dtype=complex) #Basis (A up, B up, A down, B down)
 
@@ -57,6 +57,53 @@ def H_DLKK_2D(kx,ky,t=1,tp=0.5,delta=0,mu=0,m=0):
         Hk[j,j] += AFM_AB[j]
 
     return Hk
+
+
+def H_DLKK_3D(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,m=0,Q_z=np.pi,delta_Q_z=0,PBC=False): 
+    """
+    len_z: number of layers in z-direction
+    t: NN hopping
+    tp: NNN hopping
+    tz: NN hopping in [0,0,1] direction
+    TODO: tzp: NNN hopping in [1,0,1],[-1,0,1],[0,1,1],[0,-1,1] direction
+    delta: unisotropy of NNN hopping [1,1], [-1,1] direction
+    delta_Q_z: wave vector of unisotropy -> typical values are 0 (stacked DLKK model), pi (alternating patterns of DLKK model)
+    mu: chemical potential
+    m: AFM magnetization -m on A, +m on B
+    """
+    Hk = np.zeros((4*len_z,4*len_z,*kx.shape),dtype=complex)
+    #Basis (z=0(x up, y up, x down, y down), z=1(...), ..., z=len_z-1(..))
+    #sublattices A are fixed by the first layer
+    #-> if site at (x,y,z) is sublattice A, then site at (x,y,z+1) is also sublattice A
+
+    #set 2D structure
+    #magnetization changes sign depending Q_z and layer
+    #shift energy such that the lower end of the spectrum stays the same
+    delta_energy = tz
+    for j in range(len_z):
+         Hk[4*j:4*j+4,4*j:4*j+4] = H_DLKK_2D(kx,ky,t=t,tp=tp,delta=delta*np.cos(delta_Q_z*j),mu=mu-delta_energy,m=m*np.cos(Q_z*j))
+
+    #extend to 3D
+    #z-hoppings
+    Hz = np.zeros((4,4,*kx.shape),dtype=complex)
+    # (z=1,x,up), (z=1,y,up), (z=1,x,down), (z=1,y,down)  -> (z=0,x,up), (z=0,y,up), (z=0,x,down), (z=0,y,down)
+
+    Hz[0,0] = -tz
+    Hz[1,1] = -tz
+    #spin degenerate
+    Hz[2:,2:] = Hz[:2,:2]
+
+    #add to final Hamiltonian
+    for j in range(len_z-1):
+        Hk[4*j:4*j+4,4*j+4:4*j+8] = Hz #upper block
+        Hk[4*j+4:4*j+8,4*j:4*j+4] = Hz #lower block
+
+    if PBC: # Periodic boundary conditions
+        Hk[4*(len_z-1):4*len_z,0:4] = Hz
+        Hk[0:4,4*(len_z-1):4*len_z] = Hz
+
+    return Hk
+
 
 
 
