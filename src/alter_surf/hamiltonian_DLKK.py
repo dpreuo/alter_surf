@@ -150,7 +150,7 @@ def H_DLKK_3D_MF(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,m_values=None,
 #specific functions for mean field calculations
 ###############################################################################################################################################
 
-def find_m_and_n_values(psi, filling):
+def find_m_and_n_values(es, psi, fermi_energy):
     """
     Given a set of eigenstates, calculates the mean field values for the magnetic moments and densities
     Args:
@@ -162,9 +162,9 @@ def find_m_and_n_values(psi, filling):
     Lq = psi.shape[1]
     len_z = psi.shape[0]//4 
 
-    fermi_occupation = np.linspace(0, 1, len(psi)) <= filling
+    fermi_occupation = es<fermi_energy #boolean array, true if state is occupied
 
-    local_densities = np.einsum('nkqa,n->a',np.abs(psi)**2,fermi_occupation)/Lq**2 #sum up bands, momenta, momenta
+    local_densities = np.einsum('nkqa,nkq->a',np.abs(psi)**2,fermi_occupation)/Lq**2 #sum up bands, momenta, momenta
     
     m_legend = np.kron(np.ones(len_z),Spin_operator*Sublattice_operator)
 

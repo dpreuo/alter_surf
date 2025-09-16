@@ -22,6 +22,8 @@ def plot_FS(ax,Hamiltonian_fct,param={}, Lq=200, coloring_operator='k',show_titl
     #setting a nice colormap
     if cmap=='none':
         cmap = copy.copy(matplotlib.cm.get_cmap("brg")) #set the name of the colormap
+    else:
+        cmap = copy.copy(matplotlib.cm.get_cmap(cmap)) #set the name of the colormap
     cmap.set_under(color='black')
     cmap.set_over(color='gray')
     norm = plt.Normalize(0, 1) # Create a continuous norm to map from data points to colors
@@ -91,6 +93,8 @@ def plot_bandstruc(ax,Hamiltonian_fct,param={},points_path=[[0,0],[pi,0],[0,pi],
     #setting a nice colormap
     if cmap=='none':
         cmap = copy.copy(matplotlib.cm.get_cmap("brg")) #set the name of the colormap
+    else:
+        cmap = copy.copy(matplotlib.cm.get_cmap(cmap)) #set the name of the colormap
     cmap.set_under(color='black')
     cmap.set_over(color='gray')
     norm = plt.Normalize(0, 1) # Create a continuous norm to map from data points to colors

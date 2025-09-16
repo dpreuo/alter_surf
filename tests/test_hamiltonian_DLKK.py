@@ -38,7 +38,7 @@ def test_find_m_and_n_values():
 
     ks = sample_reducedBZ(10)
     es, psi = eigs_H(*ks, H_DLKK_3D, dict(len_z=10, tz=1, delta=1, m=0.9, Q_z=np.pi, mu=-3))
-    m,n = find_m_and_n_values(psi, 0.5)
+    m,n = find_m_and_n_values(es,psi,0)
 
     assert m.shape == (10,)
     assert n.shape == (10,)

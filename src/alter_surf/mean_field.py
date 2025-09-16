@@ -3,6 +3,7 @@ import blochK.observable as observable
 import blochK.methods_basic as methods_basic
 import numpy as np
 from tqdm import tqdm
+import scipy.optimize as optimize
 
 
 def single_hartree_fock_step(
@@ -15,14 +16,23 @@ def single_hartree_fock_step(
     ks = methods_basic.sample_reducedBZ(Lq)
     es, psi = observable.eigs_H(*ks,H_DLKK_3D_MF,Hparam)
 
+    # find the fermi energy for the given filling
+    normalization_factor = np.prod(es.shape)
+    res_root = optimize.root_scalar(lambda mu: np.sum(es<mu)-normalization_factor*Hparam['filling'], bracket=[es.min(), es.max()], method='bisect')
+    if not res_root.converged:
+        raise ValueError(
+            "Rooot finding for the fermi energy did not converge"
+        )
+    fermi_energy = res_root.root
+
     # calculate the new magnetization values
-    m_values, n_values = find_m_and_n_values(psi, Hparam['filling'])
+    m_values, n_values = find_m_and_n_values(es, psi, fermi_energy)
 
     # also have the option to average the magnetization values
     if uniform_m:
         m_values = np.mean(m_values) * np.ones_like(m_values)
 
-    return m_values, n_values
+    return m_values, n_values, fermi_energy
 
 
 def hartree_fock(
@@ -46,17 +56,19 @@ def hartree_fock(
     n_values = np.zeros((n_steps + 1, Hparam['len_z']))
     n_values[0] = initial_parameters["initial_n"]
 
+    fermi_energys = np.zeros((n_steps + 1))
+    fermi_energys[0] = 0
 
     for n in prange:
 
         Hparam['m_values'] = m_values[n]
         Hparam['n_values'] = n_values[n]
 
-        new_m, new_n = single_hartree_fock_step(Hparam,Lq=Lq)
+        new_m, new_n, fermi_energy = single_hartree_fock_step(Hparam,Lq=Lq)
 
         m_values[n + 1] = (1 - mixing_proportion) * new_m + mixing_proportion * m_values[n]
         n_values[n + 1] = (1 - mixing_proportion) * new_n + mixing_proportion * n_values[n]
-
+        fermi_energys[n + 1] = fermi_energy
 
         # check for convergence
         diff = np.linalg.norm(m_values[n + 1] - m_values[n])/(np.sqrt(len(m_values[n + 1])))
@@ -75,6 +87,7 @@ def hartree_fock(
             if skip_counter >= 3:
                 m_values = m_values[: n + 1]
                 n_values = n_values[: n + 1]
+                fermi_energys = fermi_energys[: n + 1]
                 break
 
 
@@ -99,4 +112,6 @@ def hartree_fock(
                 # mix less
                 mixing_proportion = (mixing_proportion-0.05)*0.95+0.05
 
-    return m_values, n_values
+    
+
+    return m_values, n_values, fermi_energys
