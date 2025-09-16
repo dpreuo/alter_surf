@@ -52,7 +52,7 @@ def H_DLKK_2D(kx,ky,t=1,tp=0.5,delta=0,mu=0,m=0):
     Hk[2:,2:] = Hk[:2,:2]
 
     # Add AFM
-    AFM_AB = [-m, +m, +m, -m]
+    AFM_AB = -Spin_operator*Sublattice_operator*m
     for j in range(Hk.shape[0]):
         Hk[j,j] += AFM_AB[j]
 
@@ -69,19 +69,30 @@ def H_DLKK_3D(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,m=0,Q_z=np.pi,del
     delta: unisotropy of NNN hopping [1,1], [-1,1] direction
     delta_Q_z: wave vector of unisotropy -> typical values are 0 (stacked DLKK model), pi (alternating patterns of DLKK model)
     mu: chemical potential
-    m: AFM magnetization -m on A, +m on B
+    m (float or np.ndarray): AFM magnetization -m on A, +m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
     """
     Hk = np.zeros((4*len_z,4*len_z,*kx.shape),dtype=complex)
     #Basis (z=0(x up, y up, x down, y down), z=1(...), ..., z=len_z-1(..))
     #sublattices A are fixed by the first layer
     #-> if site at (x,y,z) is sublattice A, then site at (x,y,z+1) is also sublattice A
 
-    #set 2D structure
-    #magnetization changes sign depending Q_z and layer
+    #magnetization can be layer dependent
+    if isinstance(m,(int,float)): #same magnetization for all layers
+        m = m*np.cos(Q_z*np.arange(len_z)) #magnetization changes sign depending Q_z and layer
+    elif m.shape!=(len_z,):
+        raise ValueError("m has to be a float or an array with shape (len_z,)")
+    
+    #chemical potential can be layer dependent
+    if isinstance(mu,(int,float)): #same chemical potential for all layers
+        mu = mu*np.ones(len_z) 
+    elif mu.shape!=(len_z,):
+        raise ValueError("mu has to be a float or an array with shape (len_z,)")
+
     #shift energy such that the lower end of the spectrum stays the same
     delta_energy = tz
+     #set 2D structure
     for j in range(len_z):
-         Hk[4*j:4*j+4,4*j:4*j+4] = H_DLKK_2D(kx,ky,t=t,tp=tp,delta=delta*np.cos(delta_Q_z*j),mu=mu-delta_energy,m=m*np.cos(Q_z*j))
+         Hk[4*j:4*j+4,4*j:4*j+4] = H_DLKK_2D(kx,ky,t=t,tp=tp,delta=delta*np.cos(delta_Q_z*j),mu=mu[j]-delta_energy,m=m[j])
 
     #extend to 3D
     #z-hoppings
@@ -105,5 +116,73 @@ def H_DLKK_3D(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,m=0,Q_z=np.pi,del
     return Hk
 
 
+###############################################################################################################################################
+#interacting mean field Hamiltonians
+###############################################################################################################################################
+def H_DLKK_3D_MF(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,m_values=None,n_values=None,delta_Q_z=0,PBC=False,U=0, filling=0.5):
+    """
+    Same as H_DLKK_3D, but with a mean field Hubbard term.
+    Additional parameters:
+    m_values: np.ndarray, shape=(len_z,), magnetic moments in each layer
+    n_values: np.ndarray, shape=(len_z,), particle densities in each layer
+    U: float, on-site interaction strength
+    filling: float, filling fraction (0 to 1)
+    """
+    if m_values is None:
+        m_values = np.zeros(len_z)
+    if n_values is None:
+        n_values = np.ones(len_z)
+
+    if m_values.shape!=(len_z,) or n_values.shape!=(len_z,):
+        raise ValueError("m_values and n_values have to be arrays with shape (len_z,)")
+
+    #add MF contributions
+    mu = mu - U*n_values
+    m = U*m_values
+
+    H_MF = H_DLKK_3D(kx,ky,len_z=len_z,t=t,tp=tp,delta=delta,tz=tz,tzp=tzp,mu=mu,m=m,delta_Q_z=delta_Q_z,PBC=PBC)
+
+    return H_MF
 
 
+
+###############################################################################################################################################
+#specific functions for mean field calculations
+###############################################################################################################################################
+
+def find_m_and_n_values(psi, filling):
+    """
+    Given a set of eigenstates, calculates the mean field values for the magnetic moments and densities
+    Args:
+        psi (np.ndarray): The eigenstates .shape = (bands, momenta, momenta, localH)
+        filling (float): filling fraction (0 to 1)
+    Returns:
+        np.ndarray: The spatially resolved mean field values
+    """
+    Lq = psi.shape[1]
+    len_z = psi.shape[0]//4 
+
+    fermi_occupation = np.linspace(0, 1, len(psi)) <= filling
+
+    local_densities = np.einsum('nkqa,n->a',np.abs(psi)**2,fermi_occupation)/Lq**2 #sum up bands, momenta, momenta
+    
+    m_legend = np.kron(np.ones(len_z),Spin_operator*Sublattice_operator)
+
+
+    #We enforce A up = B down = - A up = - B down
+    m_values = local_densities * m_legend
+    m_values = m_values.reshape(-1, 4).sum(axis=-1)/4 #this is m(z)
+
+    n_values = local_densities.reshape(-1, 4).sum(axis=-1)/4 #this is n(z)
+
+    # check for complex values - this should not happen
+    if not np.allclose(m_values.imag, 0):
+        raise ValueError(
+            "Magnetization values are complex - somewhere, somehow you fucked it up"
+        )
+    elif not np.allclose(n_values.imag, 0):
+        raise ValueError(
+            "Density values are complex - somewhere, somehow you fucked it up"
+        )
+
+    return m_values.real, n_values.real
