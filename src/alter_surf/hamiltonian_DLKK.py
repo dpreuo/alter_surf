@@ -145,6 +145,25 @@ def H_DLKK_3D_MF(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,m_values=None,
     return H_MF
 
 
+def H_DLKK_2D_MF(kx,ky,t=1,tp=0.5,delta=0,mu=0,m_values=None,n_values=None,U=0, filling=0.5):
+    """
+    Same as H_DLKK_3D, but with a mean field Hubbard term.
+    Additional parameters:
+    m_values: np.ndarray, shape=(len_z,), magnetic moments in each layer
+    n_values: np.ndarray, shape=(len_z,), particle densities in each layer
+    U: float, on-site interaction strength
+    filling: float, filling fraction (0 to 1)
+    """
+
+    #add MF contributions
+    mu = mu - U*n_values
+    m = U*m_values
+
+    H_MF = H_DLKK_2D(kx,ky,t=t,tp=tp,delta=delta,mu=mu,m=m)
+
+    return H_MF
+
+
 
 ###############################################################################################################################################
 #specific functions for mean field calculations

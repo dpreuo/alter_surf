@@ -21,7 +21,7 @@ def single_hartree_fock_step(
     res_root = optimize.root_scalar(lambda mu: np.sum(es<mu)-normalization_factor*Hparam['filling'], bracket=[es.min(), es.max()], method='bisect')
     if not res_root.converged:
         raise ValueError(
-            "Rooot finding for the fermi energy did not converge"
+            "Root finding for the fermi energy did not converge"
         )
     fermi_energy = res_root.root
 
@@ -111,7 +111,5 @@ def hartree_fock(
             else:
                 # mix less
                 mixing_proportion = (mixing_proportion-0.05)*0.95+0.05
-
-    
 
     return m_values, n_values, fermi_energys
