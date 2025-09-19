@@ -13,7 +13,7 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
 
-def plot_FS(ax,Hamiltonian_fct,param={}, Lq=200, coloring_operator='k',show_title=True,show_xlabel=True,show_ylabel=True,show_FS=True,cmap='none',print_n=False):
+def plot_FS(ax,Hamiltonian_fct,param={}, Lq=200, coloring_operator='k',show_title=True,show_xlabel=True,show_ylabel=True,show_FS=True,cmap='none',print_filling=False):
     """Plots colored FS of psik8(param) on ax,
 
     coloring operator: a color (fixed color of all bands) or an operator (colored by eigenvalues)
@@ -77,8 +77,8 @@ def plot_FS(ax,Hamiltonian_fct,param={}, Lq=200, coloring_operator='k',show_titl
                         lc.set_array(normalized_color) #Set the values used for colormapping
                         line = ax.add_collection(lc)
     #----------------
-    if print_n:
-        print(np.sum(es<0)/Lq**2)
+    if print_filling:
+        print(np.sum(es<0)/np.prod(es.shape)) #filling
 
                     
 
