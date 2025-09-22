@@ -1,4 +1,4 @@
-from alter_surf.hamiltonian_DLKK import H_DLKK_3D_MF, Spin_operator, Sublattice_operator, find_m_and_n_values
+from alter_surf.hamiltonian_DLKK import H_DLKK_3D_MF, Spin_operator, Sublattice_operator, find_m_and_n_values, Econst_DLKK_3D_MF
 import blochK.observable as observable
 import blochK.methods_basic as methods_basic
 import numpy as np
@@ -136,3 +136,12 @@ def hartree_fock(
                 mixing_proportion = (mixing_proportion-0.05)*0.95+0.05
 
     return mAFMs, mFMs, ns, fermi_energys
+
+
+def total_energy(Hparam,Lq=50):
+    """total energy per unit cell (sqrt(2) x sqrt(2) x 1)"""
+    ks = methods_basic.sample_reducedBZ(Lq)
+    es,_ = observable.eigs_H(*ks, H_DLKK_3D_MF, Hparam)
+    total_energy = np.sum(es[es<0])/(Lq**2)/Hparam['len_z'] + Econst_DLKK_3D_MF(**Hparam)
+
+    return total_energy

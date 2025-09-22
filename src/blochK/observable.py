@@ -101,6 +101,10 @@ def isDegenerateIn(es,observable_values,threshold=10):
 #############################################################################################################################################
 #conductivity
 #############################################################################################################################################
+#conductivity derived from Kubo formula
+#both methods give same results,in 'conductivity' the operator is directly evaluated, and 'conductivity_orbital_resolved' return a tensor where one leg can be used to contract with an diagonal operator
+#in principle one can write a third function to evalute the conductivity with a non-diagonal operator
+
 from blochK.methods_basic import sample_BZ
 
 def conductivity(Hamiltonian_fct,Hparam=dict(),Gamma=1e-2,energy=0,operator=None,kmesh_BZ=None,basis='xy',optimize='path'):
@@ -162,3 +166,55 @@ def conductivity(Hamiltonian_fct,Hparam=dict(),Gamma=1e-2,energy=0,operator=None
     
     return np.real(sigma)/Lq**2 /np.pi
 
+
+def conductivity_orbital_resolved(Hamiltonian_fct,Hparam=dict(),Gamma=1e-2,energy=0,kmesh_BZ=None,optimize='path'):
+    """
+    Evalutes the conductivity of Hamiltonian_fct with 'Hparam' in the diagonal bloch basis,
+    i.e. the current operator j_iab(k) = O_a * v_ab(k) is not contracted over a (localH index). Only valid for O diagonal. This is much faster than calling conductivity several times.
+    Parameters:
+    'Hamiltonian_fct': function that returns the Hamiltonian in k-space
+    'Hparam': parameters for the Hamiltonian function
+    'Gamma':  spectral broadening
+    'energy': addtional energy at which the conductivity is evaluated. Default is 0 (Fermi level)
+    'Lq': number of k-points in the q-direction
+    'kmesh_BZ': the k-points of the Brillouin zone. If None, square BZ is sampled with 100x100 points
+    'optimize': optimization strategy for the computation, see numpy.einsum documentation, for a new problem use 'find_path' first, store it in function and use 'path'
+    Returns:
+    conductivity tensor .shape=(localH,2,2) (basis of H, n1 direction, n2 direction)
+    """
+    #sampling the BZ
+    if kmesh_BZ is None:
+        Lq = 100
+        kmesh_BZ = sample_BZ(Lq)
+    else:
+        Lq = kmesh_BZ.shape[1]
+    ks = kmesh_BZ #ks.shape=(2,k,q)
+
+    #compute the hamiltonian, eigenvalues and eigenstates
+    Hk = Hamiltonian_fct(*ks,**Hparam) #.shape = (localH,localH,k,q)
+    es,psi = eigs_H(*ks,Hamiltonian_fct,Hparam) #.shape=(band,k,q,localH)
+    
+    #compute the derivatives of Hk along unit vectors of BZ
+    dk = np.linalg.norm(np.abs(ks[:,0,1]-ks[:,0,0]),axis=0) 
+    v1 = -(np.roll(Hk,1,axis=2)-np.roll(Hk,-1,axis=2))/dk/2 #along first axis
+    v2 = -(np.roll(Hk,1,axis=3)-np.roll(Hk,-1,axis=3))/dk/2 #along second axis
+    v = np.array([v1,v2]) #.shape = (2,localH,localH,k,q)
+        
+    Greenfct = Gamma/((es-energy)**2+Gamma**2) #.shape = (band,Lq,Lq)
+
+    #compute the product of all these quantities
+    #contracting of many indices might be costly, therefore use preoptimized path or 'greedy'
+    if optimize=='path':
+        opt_path = ['einsum_path', (0, 6), (1, 5), (1, 5), (0, 4), (1, 2), (0, 2), (0, 1)]
+        sigma = np.einsum('nkqa,iabkq,mkqb,mkqc,jcdkq,nkqd,nkq,mkq->aij',np.conjugate(psi),v,psi,np.conjugate(psi),v,psi,Greenfct,Greenfct,optimize=opt_path)
+    elif optimize=='find_path': #returns the optimal path, no results!
+        opt_path = np.einsum_path('nkqa,iabkq,mkqb,mkqc,jcdkq,nkqd,nkq,mkq->aij',np.conjugate(psi),v,psi,np.conjugate(psi),v,psi,Greenfct,Greenfct, optimize='optimal')[0]
+        print('Optimal contraction path found:',opt_path)
+        return opt_path
+    elif optimize=='greedy':
+        sigma = np.einsum('nkqa,iabkq,mkqb,mkqc,jcdkq,nkqd,nkq,mkq->aij',np.conjugate(psi),v,psi,np.conjugate(psi),v,psi,Greenfct,Greenfct,optimize='greedy')
+    else:
+        sigma = np.einsum('nkqa,iabkq,mkqb,mkqc,jcdkq,nkqd,nkq,mkq->aij',np.conjugate(psi),v,psi,np.conjugate(psi),v,psi,Greenfct,Greenfct)
+    
+    
+    return np.real(sigma)/Lq**2 /np.pi

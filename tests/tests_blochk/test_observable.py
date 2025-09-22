@@ -57,3 +57,21 @@ def test_conductivity():
     sigma = observable.conductivity(Hamiltonian_fct=Hamiltonian0, Hparam=param)
     assert sigma.shape == (2, 2)
     assert np.isclose(sigma[0,0], sigma[1,1])
+
+
+def test_conductivity_orbital_resolved():
+    param = dict(t=1)
+    sigma = observable.conductivity_orbital_resolved(Hamiltonian_fct=Hamiltonian0, Hparam=param)
+    assert sigma.shape == (2, 2, 2)
+
+
+def test_conductivity_and_conductivity_orbital_resolved():
+    param = dict(t=1)
+    projector = np.array([1,0]) #projector on first orbital
+    sigma1 = observable.conductivity(Hamiltonian_fct=Hamiltonian0, Hparam=param, operator=projector)
+    sigma_or = observable.conductivity_orbital_resolved(Hamiltonian_fct=Hamiltonian0, Hparam=param)
+
+    #sum over orbital-resolved conductivity to get total conductivity
+    sigma2 = np.sum(sigma_or*projector[:,np.newaxis,np.newaxis], axis=0)
+
+    assert np.isclose(sigma1, sigma2).all()
