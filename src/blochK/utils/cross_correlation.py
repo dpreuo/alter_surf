@@ -21,7 +21,9 @@ def cross_correlation(G: np.ndarray) -> np.ndarray:
 
     X = np.fft.fft2(G,axes=(0,1)) #X(k) = G(k)
     Y = np.fft.fft2(np.flip(G,axis=(0,1)),axes=(0,1)) #Y(k) = G(-k)
-    Z = np.einsum('yxac,yxcb->yxab', X, Y)
+    Z = np.einsum('yxac,yxcb->yxab', X, Y, optimize=['einsum_path', (0, 1)]) #this is the opitmal path I found
+    #opt_path = np.einsum_path('yxac,yxcb->yxab', X, Y, optimize='optimal')[0]
+    #print('Optimal contraction path found:',opt_path)
     z = np.fft.ifft2(Z,axes=(0,1))/Lq1/Lq2 #z.shape=(qy,qx,a,b)
     z = np.roll(z,1,axis=(0,1)) #I have no idea why but I need to roll by one to get the same result
 

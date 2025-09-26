@@ -29,14 +29,14 @@ points_BZ = {
 }
 
 
-def Hamiltonian0(kx,ky,t=1): 
+def Hamiltonian0(kx,ky,t=1,mu=-1): 
     """
     t: NN hopping 
     """
     Hk = np.zeros((2,2,*kx.shape),dtype=complex) #Basis (up,down)
 
     #set hamiltonian structure
-    Hk[0,0] = -2*t*cos(kx) - 2*t*cos(ky) 
+    Hk[0,0] = -2*t*cos(kx) - 2*t*cos(ky) - mu
 
     #make hermitian
     Hk[1,0] = np.conjugate(Hk[0,1])
