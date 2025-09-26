@@ -1,35 +1,32 @@
 import numpy as np
 from numpy import pi,cos,sin,exp
 import matplotlib.pyplot as plt
+import blochK
 
 #operators
 Spin_operator = np.array([1,1,-1,-1]) #spin up +1, spin down -1
 Orbital_operator = np.array([1,-1,1,-1]) #orbital x +1, orbital y -1
 
-#Definitions for the Square lattice
-#lattice vectors
-n1 = np.array([1,0])
-n2 = np.array([0,1])
+def create_H_2orb_3D(param=dict()):
 
-# Area of unit cell (2D cross product)
-A = n1[0]*n2[1] - n1[1]*n2[0]
-#reciprocal lattice vectors
-m1 = 2*np.pi/A * np.array([n2[1], -n2[0]])
-m2 = 2*np.pi/A * np.array([-n1[1], n1[0]])
+    H_2orb_3D = blochK.Hamiltonian2D(H_2orb_3D_fct,
+                        param=param,
+                         n1=n1,n2=n2,
+                         basis = ['layers','spin','sublattice'],
+                         basis_states=['z=0,A,up', 'z=0,B,up', 'z=0,A,down', 'z=0,B,down','z=1,A,up', 'z=1,B,up', 'z=1,A,down', 'z=1,B,down','...'],)
+    
+    #the Hamiltonian has len_z dependent orbitals
+    #define operators for each z layer
+    H_2orb_3D.add_suboperator('spin',Spin_operator)
+    H_2orb_3D.add_suboperator('sublattice',Orbital_operator)
+    #define operators acting on entire system
+    H_2orb_3D.add_operator('spin',np.kron(np.ones(H_2orb_3D.n_orbitals//4),Spin_operator))
+    H_2orb_3D.add_operator('sublattice',np.kron(np.ones(H_2orb_3D.n_orbitals//4),Orbital_operator))
 
-# Define High symmetry points in BZ
-points_BZ = {
-    "\Gamma": [0,0],
-    "X": [pi,0],
-    "Y": [0,pi],
-    "R": [pi,pi],
-    "R'": [pi,-pi],
-    "-R": [-pi,pi],
-    "-R'": [-pi,-pi]
-}
+    return H_2orb_3D
 
 
-def H_2orb_2D(kx,ky,t1=1,t2=0,t3=0,mu=0,m=0): 
+def H_2orb_2D_fct(kx,ky,t1=1,t2=0,t3=0,mu=0,m=0): 
     """
     t1: NN hopping x orbital in x direction, y orbital in y direction
     t2: NN hopping x orbital in y direction, y orbital in x direction
@@ -60,7 +57,7 @@ def H_2orb_2D(kx,ky,t1=1,t2=0,t3=0,mu=0,m=0):
 
 
 
-def H_2orb_3D(kx,ky,len_z=2,t1=1,t2=0,t3=0,tz=1,tzp=0,mu=0,m=0,Q_z=np.pi,PBC=False): 
+def H_2orb_3D_fct(kx,ky,len_z=2,t1=1,t2=0,t3=0,tz=1,tzp=0,mu=0,m=0,Q_z=np.pi,PBC=False): 
     """
     len_z: number of layers in z-direction
     t1: NN hopping x orbital in x direction, y orbital in y direction
@@ -81,7 +78,7 @@ def H_2orb_3D(kx,ky,len_z=2,t1=1,t2=0,t3=0,tz=1,tzp=0,mu=0,m=0,Q_z=np.pi,PBC=Fal
     #shift energy such that the lower end of the spectrum stays the same
     delta_energy = tz
     for j in range(len_z):
-         Hk[4*j:4*j+4,4*j:4*j+4] = H_2orb_2D(kx,ky,t1=t1,t2=t2,t3=t3,mu=mu-delta_energy,m=m*np.cos(Q_z*j))
+         Hk[4*j:4*j+4,4*j:4*j+4] = H_2orb_2D_fct(kx,ky,t1=t1,t2=t2,t3=t3,mu=mu-delta_energy,m=m*np.cos(Q_z*j))
 
     #extend to 3D
     #z-hoppings

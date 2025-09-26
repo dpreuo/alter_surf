@@ -2,6 +2,8 @@ import numpy as np
 from numpy import pi,cos,sin,exp
 import matplotlib.pyplot as plt
 
+import blochK
+
 #operators
 Spin_operator = np.array([1,1,-1,-1]) #spin up +1, spin down -1
 Sublattice_operator = np.array([1,-1,1,-1]) #orbital x +1, orbital y -1
@@ -15,29 +17,52 @@ Sy = np.array([[0,-1j],[1j,0]])
 n1 = np.array([1,0])
 n2 = np.array([0,1])
 
-# Area of unit cell (2D cross product)
-A = n1[0]*n2[1] - n1[1]*n2[0]
-#reciprocal lattice vectors
-m1 = 2*np.pi/A * np.array([n2[1], -n2[0]])
-m2 = 2*np.pi/A * np.array([-n1[1], n1[0]])
+def create_H_DLKK_3D(param=dict()):
 
-# Define High symmetry points in BZ
-points_BZ = {
-    "\Gamma": [0,0],
-    "X": [pi,0],
-    "Y": [0,pi],
-    "R": [pi,pi],
-    "R'": [-pi,pi],
-    "-R": [-pi,-pi],
-    "-R'": [pi,-pi],
-    "R/2": [pi/2,pi/2],
-    "R'/2": [-pi/2,pi/2],
-    "-R/2": [-pi/2,-pi/2],
-    "-R'/2": [pi/2,-pi/2]
-}
+    H_DLKK_3D = blochK.Hamiltonian2D(H_DLKK_3D_fct,
+                        param=param,
+                         n1=n1,n2=n2,
+                         basis = ['layers','spin','sublattice'],
+                         basis_states=['z=0,A,up', 'z=0,B,up', 'z=0,A,down', 'z=0,B,down','z=1,A,up', 'z=1,B,up', 'z=1,A,down', 'z=1,B,down','...'],)
+    
+    #the Hamiltonian has len_z dependent orbitals
+    #define operators for each z layer
+    H_DLKK_3D.add_suboperator('spin',Spin_operator)
+    H_DLKK_3D.add_suboperator('sublattice',Sublattice_operator)
+    #define operators acting on entire system
+    H_DLKK_3D.add_operator('spin',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Spin_operator))
+    H_DLKK_3D.add_operator('sublattice',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Sublattice_operator))
+
+    return H_DLKK_3D
 
 
-def H_DLKK_2D(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0): 
+def create_H_DLKK_3D_MF(param=dict()):
+
+    H_DLKK_3D = blochK.Hamiltonian2D(H_DLKK_3D_MF_fct,
+                         param=param,
+                         n1=n1,n2=n2,
+                         basis = ['layers','spin','sublattice'],
+                         basis_states=['z=0,A,up', 'z=0,B,up', 'z=0,A,down', 'z=0,B,down','z=1,A,up', 'z=1,B,up', 'z=1,A,down', 'z=1,B,down','...'],)
+    
+    #the Hamiltonian has len_z dependent orbitals
+    #define operators for each z layer
+    H_DLKK_3D.add_suboperator('spin',Spin_operator)
+    H_DLKK_3D.add_suboperator('sublattice',Sublattice_operator)
+    #define operators acting on entire system
+    H_DLKK_3D.add_operator('spin',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Spin_operator))
+    H_DLKK_3D.add_operator('sublattice',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Sublattice_operator))
+
+
+    return H_DLKK_3D
+
+
+
+
+#################################################################################################################################################
+#Hamiltonian functions
+#################################################################################################################################################
+
+def H_DLKK_2D_fct(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0): 
     """
     t: NN hopping
     tp: NNN hopping
@@ -69,7 +94,7 @@ def H_DLKK_2D(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0):
     return Hk
 
 
-def H_DLKK_3D(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np.pi,delta_Q_z=0,PBC=False): 
+def H_DLKK_3D_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np.pi,delta_Q_z=0,PBC=False): 
     """
     len_z: number of layers in z-direction
     t: NN hopping
@@ -108,7 +133,7 @@ def H_DLKK_3D(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np
     delta_energy = tz
      #set 2D structure
     for j in range(len_z):
-         Hk[4*j:4*j+4,4*j:4*j+4] = H_DLKK_2D(kx,ky,t=t,tp=tp,delta=delta*np.cos(delta_Q_z*j),mu=mu[j]-delta_energy,mAF=mAF[j],mF=mF[j])
+         Hk[4*j:4*j+4,4*j:4*j+4] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta*np.cos(delta_Q_z*j),mu=mu[j]-delta_energy,mAF=mAF[j],mF=mF[j])
 
     #extend to 3D
     #z-hoppings
@@ -135,7 +160,7 @@ def H_DLKK_3D(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np
 ###############################################################################################################################################
 #interacting mean field Hamiltonians
 ###############################################################################################################################################
-def H_DLKK_3D_MF(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mF=None,mAF=None,ns=None,delta_Q_z=0,PBC=False,U=0, filling=0.5):
+def H_DLKK_3D_MF_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mF=None,mAF=None,ns=None,delta_Q_z=0,PBC=False,U=0, filling=0.5):
     """
     Same as H_DLKK_3D, but with a mean field Hubbard term.
     Additional parameters:
@@ -160,7 +185,7 @@ def H_DLKK_3D_MF(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mF=None,mAF=No
     mAF = -U/2*mAF
     mF  = -U/2*mF
 
-    H_MF = H_DLKK_3D(kx,ky,len_z=len_z,t=t,tp=tp,delta=delta,tz=tz,tzp=tzp,mu=mu,mAF=mAF,mF=mF,delta_Q_z=delta_Q_z,PBC=PBC)
+    H_MF = H_DLKK_3D_fct(kx,ky,len_z=len_z,t=t,tp=tp,delta=delta,tz=tz,tzp=tzp,mu=mu,mAF=mAF,mF=mF,delta_Q_z=delta_Q_z,PBC=PBC)
 
     return H_MF
 

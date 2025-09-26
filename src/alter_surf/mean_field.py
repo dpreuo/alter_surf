@@ -1,32 +1,33 @@
-from alter_surf.hamiltonian_DLKK import H_DLKK_3D_MF, Spin_operator, Sublattice_operator, find_m_and_n_values, Econst_DLKK_3D_MF
-import blochK.observable as observable
-import blochK.methods_basic as methods_basic
+from blochK import Hamiltonian2D
+
+from alter_surf.hamiltonian_DLKK import find_m_and_n_values, Econst_DLKK_3D_MF
+
 import numpy as np
 from tqdm import tqdm
 import scipy.optimize as optimize
 
 
 def single_hartree_fock_step(
-    Hparam: dict,
+    Hamiltonian: Hamiltonian2D,
     Lq = 100,
     fixed_fermi_energy=False,
 ):  
     
     # make and solve the Hamiltonian
-    ks = methods_basic.sample_reducedBZ(Lq)
-    es, psi = observable.eigs_H(*ks,H_DLKK_3D_MF,Hparam)
+    ks = Hamiltonian.BZ.sample(Lq)
+    es, psi = Hamiltonian.diagonalize(*ks)
 
     # find the fermi energy for the given filling
     if not fixed_fermi_energy: #standard case: filling is fixed
         normalization_factor = np.prod(es.shape)
-        res_root = optimize.root_scalar(lambda mu: np.sum(es<mu)-normalization_factor*Hparam['filling'], bracket=[es.min(), es.max()], method='bisect')
+        res_root = optimize.root_scalar(lambda mu: np.sum(es<mu)-normalization_factor*Hamiltonian.param['filling'], bracket=[es.min(), es.max()], method='bisect')
         if not res_root.converged:
             raise ValueError(
                 "Root finding for the fermi energy did not converge"
             )
         fermi_energy = res_root.root
     else: 
-        fermi_energy = Hparam['mu']
+        fermi_energy = Hamiltonian.param['mu']
 
     # calculate the new MF values
     m_z_sublattice, n_z_sublattice = find_m_and_n_values(es, psi, fermi_energy) #.shape = (layers, sublattice) 
@@ -47,7 +48,7 @@ def single_hartree_fock_step(
 
 
 def hartree_fock(
-    Hparam: dict,
+    Hamiltonian: Hamiltonian2D,
     initial_parameters: dict,
     n_steps=100,
     Lq=100, #linear number of k-points in the BZ
@@ -63,29 +64,29 @@ def hartree_fock(
     skip_counter = 0
 
     #the 3 mean fields are unrestricted in z-direction
-    mAFMs = np.zeros((n_steps + 1, Hparam['len_z']))
+    mAFMs = np.zeros((n_steps + 1, Hamiltonian.param['len_z']))
     mAFMs[0] = initial_parameters["initial_mAF"]
 
-    mFMs = np.zeros((n_steps + 1, Hparam['len_z']))
+    mFMs = np.zeros((n_steps + 1, Hamiltonian.param['len_z']))
     mFMs[0] = initial_parameters["initial_mF"]
 
-    ns = np.zeros((n_steps + 1, Hparam['len_z']))
+    ns = np.zeros((n_steps + 1, Hamiltonian.param['len_z']))
     ns[0] = initial_parameters["initial_n"]
 
     fermi_energys = np.zeros((n_steps + 1))
     if fixed_Fermi_energy:
-        fermi_energys[0] = Hparam['mu']
+        fermi_energys[0] = Hamiltonian.param['mu']
     else:
         fermi_energys[0] = 0
 
     for n in prange:
 
         #update the Hamiltonian parameters 
-        Hparam['mAF'] = mAFMs[n]
-        Hparam['mF']  = mFMs[n]
-        Hparam['ns'] = ns[n]
+        Hamiltonian.param['mAF'] = mAFMs[n]
+        Hamiltonian.param['mF']  = mFMs[n]
+        Hamiltonian.param['ns'] = ns[n]
 
-        new_mAFM, new_mFM, new_n, fermi_energy = single_hartree_fock_step(Hparam,Lq=Lq,fixed_fermi_energy=fixed_Fermi_energy)
+        new_mAFM, new_mFM, new_n, fermi_energy = single_hartree_fock_step(Hamiltonian,Lq=Lq,fixed_fermi_energy=fixed_Fermi_energy)
 
         mAFMs[n + 1] = (1 - mixing_proportion) * new_mAFM + mixing_proportion * mAFMs[n]
         mFMs[n + 1]  = (1 - mixing_proportion) * new_mFM  + mixing_proportion * mFMs[n]
@@ -95,7 +96,7 @@ def hartree_fock(
         # check for convergence
         diff = np.linalg.norm(mAFMs[n + 1] - mAFMs[n])/(np.sqrt(len(mAFMs[n + 1])))
         avg_m = np.mean(mAFMs[n + 1])
-        avg_m_stag = np.mean(mAFMs[n + 1]*(-1)**np.arange(Hparam['len_z']))
+        avg_m_stag = np.mean(mAFMs[n + 1]*(-1)**np.arange(Hamiltonian.param['len_z']))
         
         u = 6
         learning_condition = adjust_learning_rate and n > u
@@ -138,10 +139,10 @@ def hartree_fock(
     return mAFMs, mFMs, ns, fermi_energys
 
 
-def total_energy(Hparam,Lq=50):
+def total_energy(Hamiltonian:Hamiltonian2D,Lq=50):
     """total energy per unit cell (sqrt(2) x sqrt(2) x 1)"""
-    ks = methods_basic.sample_reducedBZ(Lq)
-    es,_ = observable.eigs_H(*ks, H_DLKK_3D_MF, Hparam)
-    total_energy = np.sum(es[es<0])/(Lq**2)/Hparam['len_z'] + Econst_DLKK_3D_MF(**Hparam)
+    ks = Hamiltonian.BZ.sample(Lq)
+    es,_ = Hamiltonian.diagonalize(*ks)
+    total_energy = np.sum(es[es<0])/(Lq**2)/Hamiltonian.param['len_z'] + Econst_DLKK_3D_MF(**Hamiltonian.param)
 
     return total_energy

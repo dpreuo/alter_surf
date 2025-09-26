@@ -1,0 +1,6 @@
+[project]
+name = "alter-surf"
+version = "0.1.0"
+dependencies = [
+    "blochK @ git+https://github.com/valeeb/blochK.git@main"
+]
