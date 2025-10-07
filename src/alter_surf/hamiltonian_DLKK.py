@@ -14,8 +14,8 @@ Sy = np.array([[0,-1j],[1j,0]])
 
 #Definitions for the Square lattice
 #lattice vectors
-n1 = np.array([1,0])
-n2 = np.array([0,1])
+n1 = np.array([1,1])
+n2 = np.array([-1,1])
 
 def create_H_DLKK_3D(param=dict()):
 
@@ -54,8 +54,6 @@ def create_H_DLKK_3D_MF(param=dict()):
 
 
     return H_DLKK_3D
-
-
 
 
 #################################################################################################################################################
