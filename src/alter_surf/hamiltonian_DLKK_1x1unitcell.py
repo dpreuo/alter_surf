@@ -1,6 +1,6 @@
-# here all functions are defined such that the unit cell has NN hoppings in x+y, x-y directions.
-# The lattice vectors are n1=(1,0) n2=(0,1), Atoms are at (0,0) and (1/2,1/2)
-# BZ is standard square BZ
+#here all functions are defined such that the unit cell has NN hoppings in x and y directions.
+# The lattice vectors are n1=(1,1), n2=(-1,1) atom at (0,0) and (1,0)
+# BZ is smaller!
 
 import numpy as np
 from numpy import pi,cos,sin,exp
@@ -18,8 +18,8 @@ Sy = np.array([[0,-1j],[1j,0]])
 
 #Definitions for the Square lattice
 #lattice vectors
-n1 = np.array([1,0])
-n2 = np.array([0,1])
+n1 = np.array([1,1])
+n2 = np.array([-1,1])
 
 def create_H_DLKK_3D(param=dict()):
 
@@ -76,9 +76,9 @@ def H_DLKK_2D_fct(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0):
     Hk = np.zeros((4,4,*kx.shape),dtype=complex) #Basis (A up, B up, A down, B down)
 
     # #set hamiltonian structure
-    Hk[0,1] = - 2*t*cos(kx/2+ky/2) - 2*t*cos(kx/2-ky/2)
-    Hk[0,0] = -mu  - 2*tp*cos(kx)*(1+delta) - 2*tp*cos(ky)*(1-delta)
-    Hk[1,1] = -mu  - 2*tp*cos(kx)*(1-delta) - 2*tp*cos(ky)*(1+delta)
+    Hk[0,1] = - 2*t*cos(kx) - 2*t*cos(ky)
+    Hk[0,0] = -mu  - 2*tp*cos(kx+ky)*(1+delta) - 2*tp*cos(kx-ky)*(1-delta)
+    Hk[1,1] = -mu  - 2*tp*cos(kx+ky)*(1-delta) - 2*tp*cos(kx-ky)*(1+delta)
 
     # make hermitian
     Hk[1,0] = np.conjugate(Hk[0,1])
