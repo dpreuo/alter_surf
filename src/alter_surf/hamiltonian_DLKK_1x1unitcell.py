@@ -63,6 +63,37 @@ def create_H_DLKK_3D_MF(param=dict()):
 #################################################################################################################################################
 #Hamiltonian functions
 #################################################################################################################################################
+def H_3DLKK_fct(kx,ky,kz,t=1,tz=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0): 
+    """
+    The 3D DLKK Hamiltonian function with NN hopping in z-direction.
+    t: NN hopping
+    tp: NNN hopping
+    delta: unisotropy of NNN hopping [1,1], [-1,1] direction
+    mu: chemical potential
+    mAF: AF magnetization +m on A, -m on B
+    mF: F magnetization +m on A, +m on B
+    """
+    Hk = np.zeros((4,4,*kx.shape),dtype=complex) #Basis (A up, B up, A down, B down)
+
+    # #set hamiltonian structure
+    Hk[0,1] = - 2*t*cos(kx) - 2*t*cos(ky) - 2*tz*cos(kz)
+    Hk[0,0] = -mu  - 2*tp*cos(kx+ky)*(1+delta) - 2*tp*cos(kx-ky)*(1-delta)
+    Hk[1,1] = -mu  - 2*tp*cos(kx+ky)*(1-delta) - 2*tp*cos(kx-ky)*(1+delta)
+
+    # make hermitian
+    Hk[1,0] = np.conjugate(Hk[0,1])
+
+    # spin degenerate
+    Hk[2:,2:] = Hk[:2,:2]
+
+    # Add AFM, FM
+    AFM_AB = Spin_operator*Sublattice_operator*mAF
+    FM = Spin_operator*mF
+    for j in range(Hk.shape[0]):
+        Hk[j,j] += AFM_AB[j]
+        Hk[j,j] += FM[j]
+
+    return Hk
 
 def H_DLKK_2D_fct(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0): 
     """
