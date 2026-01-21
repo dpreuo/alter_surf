@@ -23,7 +23,7 @@ n2 = np.array([0,1])
 
 def create_H_DLKK_3D(param=dict()):
 
-    H_DLKK_3D = blochK.Hamiltonian2D(H_DLKK_3D_fct,
+    H_DLKK_3D = blochK.Hamiltonian2D(H_DLKK_3Dslab_fct,
                         param=param,
                          n1=n1,n2=n2,
                          basis = ['layers','spin','sublattice'],
@@ -38,6 +38,32 @@ def create_H_DLKK_3D(param=dict()):
     H_DLKK_3D.add_operator('sublattice',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Sublattice_operator))
 
     return H_DLKK_3D
+
+
+def create_H_DLKK_true3D(param=dict()):
+    H_DLKK_true3D = blochK.Hamiltonian3D(H_DLKK_3D_fct,
+                        param=param,
+                         n1=np.array([1,0,0]),n2=np.array([0,1,0]),n3=np.array([0,0,2]),
+                         basis = ['layers','spin','sublattice'],
+                         basis_states=['z=0,A,up', 'z=0,B,up', 'z=0,A,down', 'z=0,B,down','z=1,A,up', 'z=1,B,up', 'z=1,A,down', 'z=1,B,down'],)
+    
+    H_DLKK_true3D.add_operator('spin',np.kron(np.ones(H_DLKK_true3D.n_orbitals//4),Spin_operator))
+    H_DLKK_true3D.add_operator('sublattice',np.kron(np.ones(H_DLKK_true3D.n_orbitals//4),Sublattice_operator))
+
+    return H_DLKK_true3D
+
+
+def create_H_DLKK_true3Das2D(param=dict()):
+    H_DLKK_true3D = blochK.Hamiltonian2D(lambda kx,ky,kz=0,**kwargs: H_DLKK_3D_fct(kx,ky,kz,**kwargs),
+                        param=param,
+                         n1=np.array([1,0,0]),n2=np.array([0,1,0]),
+                         basis = ['layers','spin','sublattice'],
+                         basis_states=['z=0,A,up', 'z=0,B,up', 'z=0,A,down', 'z=0,B,down','z=1,A,up', 'z=1,B,up', 'z=1,A,down', 'z=1,B,down'],)
+    
+    H_DLKK_true3D.add_operator('spin',np.kron(np.ones(H_DLKK_true3D.n_orbitals//4),Spin_operator))
+    H_DLKK_true3D.add_operator('sublattice',np.kron(np.ones(H_DLKK_true3D.n_orbitals//4),Sublattice_operator))
+
+    return H_DLKK_true3D
 
 
 def create_H_DLKK_3D_MF(param=dict()):
@@ -96,7 +122,40 @@ def H_DLKK_2D_fct(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0):
     return Hk
 
 
-def H_DLKK_3D_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np.pi,delta_Q_z=0,PBC=False): 
+def H_DLKK_3D_fct(kx,ky,kz,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,PBC=False): 
+    """
+    t: NN hopping
+    tp: NNN hopping
+    tz: NN hopping in [0,0,1] direction
+    TODO: tzp: NNN hopping in [1,0,1],[-1,0,1],[0,1,1],[0,-1,1] direction
+    delta: unisotropy of NNN hopping [1,1], [-1,1] direction
+    mu: chemical potential
+    mAF (float or np.ndarray): AF magnetization +m on A, -m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
+    mF (float or np.ndarray):   F magnetization +m on A, +m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
+    """
+    Hk = np.zeros((8,8,*kx.shape),dtype=complex)
+    #Basis (z=0(x up, y up, x down, y down), z=1(...))
+    #sublattices A are fixed by the first layer
+    #-> if site at (x,y,z) is sublattice A, then site at (x,y,z+1) is also sublattice A
+
+
+    #shift energy such that the lower end of the spectrum stays the same
+    delta_energy = tz
+     #set 2D structure
+    Hk[:4,:4] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta,mu=mu-delta_energy,mAF= mAF,mF=mF)
+    Hk[4:,4:] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta,mu=mu-delta_energy,mAF=-mAF,mF=mF)
+
+    #extend to 3D
+    #z-hoppings
+    Hk[4,0] = Hk[0,4] = -2*tz*cos(kz/2)
+    Hk[5,1] = Hk[1,5] = -2*tz*cos(kz/2)
+    Hk[6,2] = Hk[2,6] = -2*tz*cos(kz/2)
+    Hk[7,3] = Hk[3,7] = -2*tz*cos(kz/2)
+
+    return Hk
+
+
+def H_DLKK_3Dslab_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np.pi,delta_Q_z=0,PBC=False): 
     """
     len_z: number of layers in z-direction
     t: NN hopping
@@ -187,7 +246,7 @@ def H_DLKK_3D_MF_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mF=None,mA
     mAF = -U/2*mAF
     mF  = -U/2*mF
 
-    H_MF = H_DLKK_3D_fct(kx,ky,len_z=len_z,t=t,tp=tp,delta=delta,tz=tz,tzp=tzp,mu=mu,mAF=mAF,mF=mF,delta_Q_z=delta_Q_z,PBC=PBC)
+    H_MF = H_DLKK_3Dslab_fct(kx,ky,len_z=len_z,t=t,tp=tp,delta=delta,tz=tz,tzp=tzp,mu=mu,mAF=mAF,mF=mF,delta_Q_z=delta_Q_z,PBC=PBC)
 
     return H_MF
 
