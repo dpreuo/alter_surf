@@ -5,6 +5,7 @@ testing_notebooks/
 results.npy
 data/
 paper_figs*
+.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
