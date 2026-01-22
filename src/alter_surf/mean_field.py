@@ -78,6 +78,7 @@ def hartree_fock(
         fermi_energys[0] = Hamiltonian.param['mu']
     else:
         fermi_energys[0] = 0
+        Hamiltonian.param['mu'] = 0
 
     for n in prange:
 

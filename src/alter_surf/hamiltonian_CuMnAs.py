@@ -10,6 +10,39 @@ import blochK
 from blochK.utils.hamiltonian_fct import operator_expand_dims,s0,sx,sy,sz
 
 
+def create_H_CuMnAs_slab(Hparam=dict()):
+    Hparam['numb_z'] = (Hparam['len_z']+1)//2
+    if Hparam['len_z']%2==0: #len_z even: everything fine
+        H = blochK.Hamiltonian2D(H_slab_fct, param=Hparam)
+        H.add_suboperator('proj',np.eye(H.n_orbitals))
+        H.add_suboperator('spin',np.array([1,1,1,1,-1,-1,-1,-1]))
+        H.add_suboperator('layer',np.array([1,1,-1,-1,1,1,-1,-1]))
+        H.add_operator('spin',np.kron(np.ones(Hparam['numb_z']),np.array([1,1,1,1,-1,-1,-1,-1])))
+    else: #len_z odd: need to project out last layer from operator definitions
+        H = blochK.Hamiltonian2D(H_slab_fct, param=Hparam)
+        #construct projector to project out the last layer, which to use with operators
+        selected = np.delete(np.arange(H.param['numb_z']*8),[-6,-5,-2,-1])
+        proj = np.eye(H.param['numb_z']*8)[*np.ix_(selected),...]
+        H.add_suboperator('proj',proj)
+        #add the other operators. operators need be constructed with H.suboperator.proj.dot(O)
+        H.add_suboperator('spin', np.array([1,1,1,1,-1,-1,-1,-1]))
+        H.add_suboperator('layer',np.array([1,1,-1,-1,1,1,-1,-1]))
+        print(proj.shape, H.n_orbitals)
+        H.add_operator('spin',proj.dot(np.kron(np.ones(Hparam['numb_z']),np.array([1,1,1,1,-1,-1,-1,-1]))))
+
+    return H
+
+
+def create_H_CuMnAs_3D(Hparam=dict()):
+    H3D = blochK.Hamiltonian3D(H_3D_fct, param=Hparam, basis = ['spin','z-layer','sublattice'])
+    H3D.add_operator('spin',np.array([1,1,1,1,-1,-1,-1,-1]))
+
+    return H3D
+
+
+
+
+
 def H_3D_fct(kx,ky,kz,t=0,tp=0,tz=1,t2=0,dt2=0,dtpp=0,Delta0=0,Delta1=0,Delta2=0,Delta3=0,lambda1=0,lambda2=0,lambda3=0,V_layer_z=0,mu=0): 
     """
     translation invariant model of CuMnAs in 3D

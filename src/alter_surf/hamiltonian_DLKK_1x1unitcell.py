@@ -33,6 +33,7 @@ def create_H_DLKK_3D(param=dict()):
     #define operators for each z layer
     H_DLKK_3D.add_suboperator('spin',Spin_operator)
     H_DLKK_3D.add_suboperator('sublattice',Sublattice_operator)
+    
     #define operators acting on entire system
     H_DLKK_3D.add_operator('spin',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Spin_operator))
     H_DLKK_3D.add_operator('sublattice',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Sublattice_operator))
@@ -52,6 +53,7 @@ def create_H_DLKK_3D_MF(param=dict()):
     #define operators for each z layer
     H_DLKK_3D.add_suboperator('spin',Spin_operator)
     H_DLKK_3D.add_suboperator('sublattice',Sublattice_operator)
+
     #define operators acting on entire system
     H_DLKK_3D.add_operator('spin',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Spin_operator))
     H_DLKK_3D.add_operator('sublattice',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Sublattice_operator))

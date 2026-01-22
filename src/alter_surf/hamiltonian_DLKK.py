@@ -33,6 +33,8 @@ def create_H_DLKK_3D(param=dict()):
     #define operators for each z layer
     H_DLKK_3D.add_suboperator('spin',Spin_operator)
     H_DLKK_3D.add_suboperator('sublattice',Sublattice_operator)
+    H_DLKK_3D.add_suboperator('layer',np.array([1,1,1,1,-1,-1,-1,-1]))
+    H_DLKK_3D.add_suboperator('proj',np.eye(H_DLKK_3D.n_orbitals))
     #define operators acting on entire system
     H_DLKK_3D.add_operator('spin',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Spin_operator))
     H_DLKK_3D.add_operator('sublattice',np.kron(np.ones(H_DLKK_3D.n_orbitals//4),Sublattice_operator))
@@ -155,7 +157,7 @@ def H_DLKK_3D_fct(kx,ky,kz,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,PBC=Fal
     return Hk
 
 
-def H_DLKK_3Dslab_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np.pi,delta_Q_z=0,PBC=False): 
+def H_DLKK_3Dslab_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np.pi,delta_Q_z=0,PBC=False, numb_z=None): 
     """
     len_z: number of layers in z-direction
     t: NN hopping
@@ -167,11 +169,18 @@ def H_DLKK_3Dslab_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=
     mu: chemical potential
     mAF (float or np.ndarray): AF magnetization +m on A, -m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
     mF (float or np.ndarray):   F magnetization +m on A, +m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
+    numb_z: dummy variable for constructing observables, counts the number of unit cell (rounded to next integer)
     """
     Hk = np.zeros((4*len_z,4*len_z,*kx.shape),dtype=complex)
     #Basis (z=0(x up, y up, x down, y down), z=1(...), ..., z=len_z-1(..))
     #sublattices A are fixed by the first layer
     #-> if site at (x,y,z) is sublattice A, then site at (x,y,z+1) is also sublattice A
+
+    #we are stacking len_z/2 unit cells, each containing 2 layers
+    if len_z%2==0: #if len_z is even
+        numb_z = len_z//2 #everything is fine. Each unit cell has 2 layers
+    else: #if len_z is odd
+        numb_z = (len_z+1)//2 #we construct a larger Hamiltonian and later project out the last layer
 
     #AFM can be layer dependent
     if isinstance(mAF,(int,float)): #same magnetization for all layers
@@ -242,7 +251,7 @@ def H_DLKK_3D_MF_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mF=None,mA
         raise ValueError("mAF, mF, and ns have to be arrays with shape (len_z,)")
 
     #add MF contributions
-    mu = mu - U/2* (ns-1) # this 1 needs to be removed!!
+    mu = mu - U/2 * (ns-1) # this 1 needs to be removed!!
     mAF = -U/2*mAF
     mF  = -U/2*mF
 
@@ -267,6 +276,9 @@ def Econst_DLKK_3D_MF(len_z=2,U=0,mAF=None,mF=None,ns=None,**other_arguments_Hpa
     EA = U/4 * (np.sum(mA**2) - np.sum(ns**2))/len_z
     EB = U/4 * (np.sum(mA**2) - np.sum(ns**2))/len_z
     E_const = EA+EB
+
+    #different calulation
+    E_const = U/4 * (np.sum(mA**2) - np.sum(ns**2))/len_z
 
     return E_const
 
