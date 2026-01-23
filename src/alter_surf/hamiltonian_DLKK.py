@@ -23,6 +23,10 @@ n2 = np.array([0,1])
 
 def create_H_DLKK_3D(param=dict()):
 
+    assert 'len_z' in param, "You need to specify 'len_z' you dumbo."
+    param['numb_z'] = (param['len_z']+1)//2
+    
+
     H_DLKK_3D = blochK.Hamiltonian2D(H_DLKK_3Dslab_fct,
                         param=param,
                          n1=n1,n2=n2,
