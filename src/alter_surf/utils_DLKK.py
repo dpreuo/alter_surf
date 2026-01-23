@@ -6,6 +6,12 @@ def get_conductivity_layer_resolved(Hamiltonian, **conductivity_args):
     """Computes the layer resolved conductivity for a given DLKK Hamiltonian 
     Returns:
         layers, conductivity_total, conductivity_spin
+    -----------
+    
+    -----------
+    Example:
+    How to use the results to get the spin splitting angle (in degrees)
+        2*np.arctan(spin_cond[:,0,0]/cond0[:,0,0])*180/pi
     """
     len_z = Hamiltonian.param['len_z']
     # Calculate spin conductivity
