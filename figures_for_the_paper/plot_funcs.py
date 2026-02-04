@@ -98,6 +98,8 @@ def make_spectral_functions(H, chosen_layers, psis, es, energy_resolution, eta):
     for layer in chosen_layers:
         p_layers += H.suboperator.proj @ project_doublelayer(layer,H)
 
+    print(p_layers)
+
     p_spin = H.operator.spin * p_layers
 
     spec = spec_func(psis, es, energy_resolution, eta, p_layers).T
@@ -119,7 +121,7 @@ def normalize_and_find_colours(specs_bulk, specs_boundary, blackness_parameter=0
 
     l = np.max(np.abs([specs_bulk[1], specs_boundary[1]]))
 
-    spec_diff_norm = Normalize(-l,l,)
+    spec_diff_norm = Normalize(-l,l)
 
     colors_bulk = two_param_color(
         spec_diff_norm(specs_bulk[1]),
