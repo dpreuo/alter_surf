@@ -1,10 +1,6 @@
 import numpy as np
 
 from alter_surf.utils3D import project_doublelayer
-
-
-
-
 from blochK.observable import conductivity_list_of_operators
 
 def get_conductivity_layer_resolved(Hamiltonian, **conductivity_args):
@@ -39,9 +35,12 @@ def get_conductivity_layer_resolved(Hamiltonian, **conductivity_args):
         operators.append([Hamiltonian.suboperator.proj.dot(project_doublelayer(layer,Hamiltonian)),
                         Hamiltonian.suboperator.proj.dot(project_doublelayer(layer,Hamiltonian))*Hamiltonian.operator.spin])
     operators = np.swapaxes(operators,0,1) #.shape=(2, n_layers,localH,localH)
-    
 
-    cond_tensor = conductivity_list_of_operators(Hamiltonian,list_of_operators=operators,optimize=['einsum_path', (0, 6), (1, 5), (1, 5), (1, 4), (1, 2), (1, 2), (0, 1)],**conductivity_args)
+    #compute the conductivity
+    optimize = [['einsum_path', (0, 7), (2, 6), (2, 6), (1, 5), (2, 3), (1, 3), (1, 2), (0, 1)], ['einsum_path', (0, 7), (2, 6), (2, 6), (2, 5), (2, 3), (1, 3), (1, 2), (0, 1)]]
+    cond_tensor = conductivity_list_of_operators(Hamiltonian,list_of_operators=operators,optimize=optimize,**conductivity_args)
+    
+    #get spin and total conductivity
     cond = cond_tensor[0]
     spin_cond = cond_tensor[1]
 

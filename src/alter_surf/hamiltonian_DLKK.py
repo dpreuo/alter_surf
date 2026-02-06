@@ -96,7 +96,7 @@ def create_H_DLKK_3D_MF(param=dict()):
 #Hamiltonian functions
 #################################################################################################################################################
 
-def H_DLKK_2D_fct(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0): 
+def H_DLKK_2D_fct(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0,jpx=0,jpy=0): 
     """
     t: NN hopping
     tp: NNN hopping
@@ -104,13 +104,15 @@ def H_DLKK_2D_fct(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0):
     mu: chemical potential
     mAF: AF magnetization +m on A, -m on B
     mF: F magnetization +m on A, +m on B
+    jpx: LCO NNN in x direction
+    jpy: LCO NNN in y direction
     """
     Hk = np.zeros((4,4,*kx.shape),dtype=complex) #Basis (A up, B up, A down, B down)
 
     # #set hamiltonian structure
     Hk[0,1] = - 2*t*cos(kx/2+ky/2) - 2*t*cos(kx/2-ky/2)
-    Hk[0,0] = -mu  - 2*tp*cos(kx)*(1+delta) - 2*tp*cos(ky)*(1-delta)
-    Hk[1,1] = -mu  - 2*tp*cos(kx)*(1-delta) - 2*tp*cos(ky)*(1+delta)
+    Hk[0,0] = -mu  - 2*tp*cos(kx)*(1+delta) - 2*tp*cos(ky)*(1-delta) + jpx*np.sin(kx) + jpy*np.sin(ky)
+    Hk[1,1] = -mu  - 2*tp*cos(kx)*(1-delta) - 2*tp*cos(ky)*(1+delta) - jpx*np.sin(kx) - jpy*np.sin(ky)
 
     # make hermitian
     Hk[1,0] = np.conjugate(Hk[0,1])
@@ -128,7 +130,7 @@ def H_DLKK_2D_fct(kx,ky,t=1,tp=0.5,delta=0,mu=0,mAF=0,mF=0):
     return Hk
 
 
-def H_DLKK_3D_fct(kx,ky,kz,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,PBC=False): 
+def H_DLKK_3D_fct(kx,ky,kz,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,jpx=0,jpy=0,PBC=False): 
     """
     t: NN hopping
     tp: NNN hopping
@@ -138,18 +140,19 @@ def H_DLKK_3D_fct(kx,ky,kz,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,PBC=Fal
     mu: chemical potential
     mAF (float or np.ndarray): AF magnetization +m on A, -m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
     mF (float or np.ndarray):   F magnetization +m on A, +m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
+    jpx: LCO NNN in x direction
+    jpy: LCO NNN in y direction
     """
     Hk = np.zeros((8,8,*kx.shape),dtype=complex)
     #Basis (z=0(x up, y up, x down, y down), z=1(...))
     #sublattices A are fixed by the first layer
     #-> if site at (x,y,z) is sublattice A, then site at (x,y,z+1) is also sublattice A
 
-
     #shift energy such that the lower end of the spectrum stays the same
     delta_energy = tz
      #set 2D structure
-    Hk[:4,:4] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta,mu=mu-delta_energy,mAF= mAF,mF=mF)
-    Hk[4:,4:] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta,mu=mu-delta_energy,mAF=-mAF,mF=mF)
+    Hk[:4,:4] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta,mu=mu-delta_energy,mAF= mAF,mF=mF,jpx=jpx,jpy=jpy)
+    Hk[4:,4:] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta,mu=mu-delta_energy,mAF=-mAF,mF=mF,jpx=jpx,jpy=jpy)
 
     #extend to 3D
     #z-hoppings
@@ -161,7 +164,7 @@ def H_DLKK_3D_fct(kx,ky,kz,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,PBC=Fal
     return Hk
 
 
-def H_DLKK_3Dslab_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np.pi,delta_Q_z=0,PBC=False, numb_z=None): 
+def H_DLKK_3Dslab_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=0,Q_z=np.pi,delta_Q_z=0,PBC=False, numb_z=None,jpx=0,jpy=0): 
     """
     len_z: number of layers in z-direction
     t: NN hopping
@@ -173,6 +176,8 @@ def H_DLKK_3Dslab_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=
     mu: chemical potential
     mAF (float or np.ndarray): AF magnetization +m on A, -m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
     mF (float or np.ndarray):   F magnetization +m on A, +m on B. If float, same m for all layers. If .shape=(len_z,), m[j] is the magnetization in layer j
+    jpx: LCO NNN in x direction
+    jpy: LCO NNN in y direction
     numb_z: dummy variable for constructing observables, counts the number of unit cell (rounded to next integer)
     """
     Hk = np.zeros((4*len_z,4*len_z,*kx.shape),dtype=complex)
@@ -207,7 +212,7 @@ def H_DLKK_3Dslab_fct(kx,ky,len_z=2,t=1,tp=0.5,delta=0,tz=1,tzp=0,mu=0,mAF=0,mF=
     delta_energy = tz
      #set 2D structure
     for j in range(len_z):
-         Hk[4*j:4*j+4,4*j:4*j+4] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta*np.cos(delta_Q_z*j),mu=mu[j]-delta_energy,mAF=mAF[j],mF=mF[j])
+         Hk[4*j:4*j+4,4*j:4*j+4] = H_DLKK_2D_fct(kx,ky,t=t,tp=tp,delta=delta*np.cos(delta_Q_z*j),mu=mu[j]-delta_energy,mAF=mAF[j],mF=mF[j],jpx=jpx,jpy=jpy)
 
     #extend to 3D
     #z-hoppings
