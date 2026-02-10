@@ -44,6 +44,9 @@ def get_conductivity_layer_resolved(Hamiltonian, **conductivity_args):
     cond = cond_tensor[0]
     spin_cond = cond_tensor[1]
 
+    #symmetrize the spin conducitivity. Its antisymmetic part is not physical and only arises from layer resolution.
+    spin_cond = (spin_cond + np.swapaxes(spin_cond,1,2))/2
+
     return layers, cond, spin_cond
 
 
