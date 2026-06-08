@@ -56,7 +56,6 @@ def slab_ham(Hparam0):
         # add the other operators. operators need be constructed with H.suboperator.proj.dot(O)
         H.add_suboperator("spin", np.array([1, 1, 1, 1, -1, -1, -1, -1]))
         H.add_suboperator("layer", np.array([1, 1, -1, -1, 1, 1, -1, -1]))
-        print(proj.shape, H.n_orbitals)
         H.add_operator(
             "spin",
             proj.dot(
@@ -69,14 +68,24 @@ def slab_ham(Hparam0):
     return H
 
 
-def project_doublelayer(layer,H):
+def project_doublelayer(layer, H):
     """Constructs the observable to project in layer and layer+1"""
-    if layer%2==0: #for even layers
-        return np.kron(projector2layer(layer//2,len_z=H.param['numb_z']),np.abs(H.suboperator.layer))
-    else: #odd layers
-        layer1 = np.kron(projector2layer(layer//2,len_z=H.param['numb_z']),H.suboperator.layer<0)
-        layer2 = np.kron(projector2layer(layer//2+1,len_z=H.param['numb_z']),H.suboperator.layer>0)
+    if layer % 2 == 0:  # for even layers
+        return np.kron(
+            projector2layer(layer // 2, len_z=H.param["numb_z"]),
+            np.abs(H.suboperator.layer),
+        )
+    else:  # odd layers
+        layer1 = np.kron(
+            projector2layer(layer // 2, len_z=H.param["numb_z"]),
+            H.suboperator.layer < 0,
+        )
+        layer2 = np.kron(
+            projector2layer(layer // 2 + 1, len_z=H.param["numb_z"]),
+            H.suboperator.layer > 0,
+        )
         return layer1 + layer2
+
 
 def spec_func(psis, es, e_vals, eta, proj):
 
@@ -94,9 +103,9 @@ def spec_func(psis, es, e_vals, eta, proj):
 
 def make_spectral_functions(H, chosen_layers, psis, es, energy_resolution, eta):
 
-    p_layers = np.zeros(H.param["len_z"]*4)
+    p_layers = np.zeros(H.param["len_z"] * 4)
     for layer in chosen_layers:
-        p_layers += H.suboperator.proj @ project_doublelayer(layer,H)
+        p_layers += H.suboperator.proj @ project_doublelayer(layer, H)
 
     # print(p_layers)
 
@@ -108,20 +117,27 @@ def make_spectral_functions(H, chosen_layers, psis, es, energy_resolution, eta):
     return np.squeeze(spec), np.squeeze(spec_spin)
 
 
-def normalize_and_find_colours(specs_bulk, specs_boundary, blackness_parameter=0.5):
+def normalize_and_find_colours(
+    specs_bulk,
+    specs_boundary,
+    blackness_parameter=0.5,
+    lim_bulk=None,
+    lim_boundary=None,
+    lim_spin=None
+):
 
-    spec_same_norm_bulk = Normalize(
-        np.min(specs_bulk[0]),
-        np.max(specs_bulk[0]),
-    )
-    spec_same_norm_boundary = Normalize(
-        np.min(specs_boundary[0]),
-        np.max(specs_boundary[0]),
-    )
+    # normalise the regular part separately
+    if lim_bulk == None:
+        lim_bulk = (np.min(specs_bulk[0]), np.max(specs_bulk[0]))
+    if lim_boundary == None:
+        lim_boundary = (np.min(specs_boundary[0]), np.max(specs_boundary[0]))
+    spec_same_norm_bulk = Normalize(*lim_bulk)
+    spec_same_norm_boundary = Normalize(*lim_boundary)
 
-    l = np.max(np.abs([specs_bulk[1], specs_boundary[1]]))
-
-    spec_diff_norm = Normalize(-l,l)
+    # normalise the spin part together
+    if lim_spin == None:
+        lim_spin = np.max(np.abs([specs_bulk[1], specs_boundary[1]]))
+    spec_diff_norm = Normalize(-lim_spin, lim_spin)
 
     colors_bulk = two_param_color(
         spec_diff_norm(specs_bulk[1]),
@@ -135,6 +151,7 @@ def normalize_and_find_colours(specs_bulk, specs_boundary, blackness_parameter=0
     )
 
     return colors_bulk, colors_boundary
+
 
 def make_path(points, nk):
     k_walk_2d = (
