@@ -124,7 +124,7 @@ def H_3D_fct(kx,ky,kz,t=0,tp=0,tz=1,t2=0,dt2=0,dtpp=0,Delta0=0,Delta1=0,Delta2=0
     return Hk
 
 
-def H_slab_fct(kx,ky,len_z=2,t=0,tp=0,tz=1,t2=0,dt2=0,dtpp=0,Delta0=0,Delta1=0,Delta2=0,Delta3=0,lambda1=0,lambda2=0,lambda3=0,V_layer_z=0,mu=0,PBC=False,numb_z=0): 
+def H_slab_fct(kx,ky,len_z=2,t=0,tp=0,tz=1,t2=0,dt2=0,dtpp=0,Delta0=0,Delta1=0,Delta2=0,Delta3=0,lambda1=0,lambda2=0,lambda3=0,V_layer_z=0,mu=0,PBC=False,numb_z=0, **kwargs): 
     """
     slab model of CuMnAs in slab geometry with len_z layers in z-direction
     ----------
